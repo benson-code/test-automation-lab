@@ -1,5 +1,6 @@
 """WEB-011：每個畫面在兩種手機上都不能左右捲動、沒有被卡片裁掉的內容，按鈕和連結至少
-44 x 44 px（L-01、L-02），操作之後出現的訊息要在看得到的地方（L-04）。"""
+44 x 44 px（L-01、L-02），操作之後出現的訊息要在看得到的地方（L-04）。WEB-018：卡片的細框線
+不佔版面（§7.7）。"""
 import pytest
 from playwright.sync_api import expect
 
@@ -52,6 +53,41 @@ def test_the_largest_amounts_and_a_long_name_fit(page, app_url, api):
     page.set_viewport_size({"width": 360, "height": 640})
     on_small = problems_on(screens)
     assert not on_phone and not on_small, {"profile": on_phone, "360x640": on_small}
+
+
+
+@pytest.mark.case_id("WEB-018")
+def test_a_card_border_takes_no_room(page, app_url, api):
+    """卡片的細框線畫在卡片裡面，不佔版面，和 Android、iOS 一樣（SPEC §7.7）。
+
+    原本是 CSS 的 border：上下各佔 1 px，一張卡片比 App 的高 2 px；Payment detail 疊了兩張卡片，
+    下面的內容比 App 低 4 px（2.16 三端並排量測時發現）。量的是卡片第一個子元素和卡片頂端的距離，
+    應該剛好等於卡片的 padding。
+    """
+    wallet = funded_wallet(api, "100.00")
+    payment_id = api.pay(wallet, "30.00").json()["payment_id"]
+    api.refund(payment_id, "5.00")
+
+    screens = {
+        "start": lambda: StartPage(page, app_url).open(),
+        "home": lambda: HomePage(page, app_url).open(wallet),
+        "history": lambda: HistoryPage(page, app_url).open(wallet),
+        "confirm": lambda: PayPage(page, app_url).open(wallet).continue_with("10"),
+        "receipt": lambda: PayPage(page, app_url).open(wallet).pay("10"),
+        "payment detail": lambda: PaymentDetailPage(page, app_url).open(wallet, payment_id),
+    }
+    extra = {}
+    for name, show in screens.items():
+        show()
+        page.locator(".card").first.wait_for()
+        found = page.evaluate("""() => [...document.querySelectorAll('.card')].map(card => {
+            const first = card.firstElementChild;
+            return first.getBoundingClientRect().top - card.getBoundingClientRect().top
+                - parseFloat(getComputedStyle(card).paddingTop);
+        })""")
+        if any(abs(v) > 0.01 for v in found):
+            extra[name] = [round(v, 2) for v in found]
+    assert not extra, f"px between a card's padding and its first child, per card: {extra}"
 
 
 def problems_on(screens) -> dict:

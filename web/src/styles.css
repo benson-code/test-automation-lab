@@ -140,7 +140,9 @@ html:has(.tab-bar) { scroll-padding-bottom: calc(64px + env(safe-area-inset-bott
   gap: var(--spacing-md);
   padding: var(--spacing-xl);
   background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-default);
+  /* The hairline is drawn inside the card and takes no room, as in the apps (SPEC §7.7, WEB-018): a border
+     added 1 px above and below, so every card was 2 px taller than the apps' */
+  box-shadow: inset 0 0 0 1px var(--color-border-default);
   border-radius: var(--radius-xl);
 }
 .card-tight { gap: var(--spacing-xs); }
