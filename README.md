@@ -88,8 +88,8 @@ test-automation-lab/
 ├── tests/                     (3) Test case layer
 │   ├── conftest.py            API startup, fixtures, --env / --target_case_ids / --target_marks
 │   ├── test_*.py              100 API tests
-│   ├── web/                   60 web UI test runs (Playwright): three engines, failure evidence
-│   ├── app/                   54 app UI test runs (Appium): device, displays, test proxy, failure evidence
+│   ├── web/                   75 web UI test runs (Playwright): three engines, failure evidence
+│   ├── app/                   58 app UI test runs (Appium): device, displays, test proxy, failure evidence
 │   └── ios/                   15 iOS UI test runs (Appium XCUITest): simulator, test proxy, failure evidence
 ├── SPEC.md                    Specification for the clients (web, Android, iOS): rules, screens, hooks, cases
 ├── android/                   Native Android app: Kotlin + Jetpack Compose
@@ -396,7 +396,7 @@ found the API accepting `１００`.
 (cd android && ./gradlew assembleDebug)          # the debug build: only it accepts the proxy's address
 appium --address 127.0.0.1 --port 4723           # Appium 3 and the uiautomator2 driver, another terminal
 export ANDROID_SERIAL=127.0.0.1:5555                      # the device, when adb sees more than one
-.venv/bin/pytest tests/app --app                          # 58 runs, 5 to 9 minutes (devices below)
+.venv/bin/pytest tests/app --app                          # 58 runs, 5 to 10 minutes (devices below)
 .venv/bin/python tools/fault_check.py --app-only          # planted defects, app cases only
 .venv/bin/python tools/parity_check.py                    # web and app compared; needs the web build too
 ```
@@ -407,11 +407,11 @@ is missing.
 
 **Devices.** The suite has been run on two kinds of device, with the same code and the same results:
 
-| Device | Android | Host | `ANDROID_SERIAL` | 54 runs |
+| Device | Android | Host | `ANDROID_SERIAL` | Time for the suite |
 |---|---|---|---|---|
-| redroid: Android in a Docker container | 14 | The ARM64 Linux development machine (section 7) | `127.0.0.1:5555` | about 8 minutes |
-| Google's Android Emulator: Pixel 7 profile, arm64 image | 16 (API 36, the app's target) | A Mac with Apple silicon | `emulator-5554` | about 5 minutes |
-| Google's Android Emulator: Pixel 7 profile, x86-64 image | 16 (API 36) | GitHub's x64 Linux runner, in CI (section 8) | `emulator-5554` | about 9 minutes |
+| redroid: Android in a Docker container | 14 | The ARM64 Linux development machine (section 7) | `127.0.0.1:5555` | about 8 minutes (54 runs) |
+| Google's Android Emulator: Pixel 7 profile, arm64 image | 16 (API 36, the app's target) | A Mac with Apple silicon | `emulator-5554` | about 5 minutes (54 runs) |
+| Google's Android Emulator: Pixel 7 profile, x86-64 image | 16 (API 36) | GitHub's x64 Linux runner, in CI (section 8) | `emulator-5554` | 7 to 10 minutes (58 runs) |
 
 redroid shares the host's Linux kernel and needs its binder driver, so it runs on Linux only. The
 emulator is a virtual machine with its own kernel (on a Mac, through Apple's Hypervisor framework),
