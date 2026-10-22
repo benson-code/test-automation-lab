@@ -11,7 +11,8 @@ receipt, with the four Confirm states and the `replayed` receipt). The second (S
 History (grouped by day), Top up (no Retry after no answer, K-07), Payment detail with refunds (Retry
 with the same key), payment rows that open their detail, and *View payment* on the payment receipt.
 Since SPEC 2.15 a pending payment and its receipt survive iOS ending the app in the background (K-08,
-IOS-015 and IOS-017), kept in the scene's saved state (`@SceneStorage`). Not yet: unit tests and CI.
+IOS-015 and IOS-017), kept in the scene's saved state (`@SceneStorage`). Unit tests since SPEC 2.17
+(below). Not yet: CI.
 
 ## Build
 
@@ -45,15 +46,39 @@ in between. Release builds ignore it. `Info.plist` allows plain HTTP to local ad
 Requests use an ephemeral `URLSession` with no cache: a balance must come from the server, never from a
 stored answer.
 
+## Unit tests
+
+`WalletTests/`: 35 XCTest tests of the app's logic, in the simulator, the same cases as the Android
+app's unit tests (`android/app/src/test/`). The shared scheme `Wallet` runs them with `TZ=Asia/Taipei`.
+
+```bash
+xcodebuild test -project ios/Wallet.xcodeproj -scheme Wallet -derivedDataPath ios/build \
+    -destination 'platform=iOS Simulator,name=iPhone 17'               # about 3 s once built
+```
+
+| Tests | What they hold the app to |
+|---|---|
+| `MoneyTests` (8) | Grouping, the typographic minus, integer cents, the 12-digit limit; `[0-9]`, not `\d`: in the simulator's ICU, `\d` takes `１００` |
+| `FormatsTests` (5) | Times in the device's time zone, Today and Yesterday by the local date, masked wallet IDs |
+| `AttemptTests` (11) | One key per attempt, resent after no answer, a new one for a new amount, none for top-ups, a restored attempt (K-08), and a second submit while one is in flight sends nothing (K-02), which no UI test can reach (SPEC §9) |
+| `MessagesSpecParityTests` (2) | Every error text equals SPEC.md §6.6, read from the file |
+| `DesignTokenParityTests` (4) | Colours, spacing, radii and text styles equal `web/src/tokens.css` |
+| `ApiConfigTests` (5) | The launch argument, ignored in Release builds and when it is not an http(s) URL |
+
+SPEC.md and tokens.css are copied into the test bundle on every build (the group *Shared files*):
+read from the Mac's `~/Documents` inside the simulator, the test hung. Each class was seen to fail with
+one line of the app broken (SPEC §11, 2.17).
+
 ## Project
 
-`Wallet.xcodeproj` is written by hand and small: the `Wallet/` folder is a synchronised group, so a new
-Swift file needs no change to the project file.
+`Wallet.xcodeproj` is written by hand and small: `Wallet/` and `WalletTests/` are synchronised groups,
+so a new Swift file needs no change to the project file.
 
 ```
 ios/
 ├── Wallet.xcodeproj/
 ├── Info.plist                 Merged with Xcode's generated keys: local HTTP, the Inter fonts
+├── WalletTests/               Unit tests (XCTest), one file per class above
 └── Wallet/
     ├── WalletApp.swift        Entry point and the routes (SPEC §4); Payment detail goes back to History;
     │                          the screen and Pay's state kept in the scene's saved state (K-08)

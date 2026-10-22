@@ -14,7 +14,8 @@ in the same pytest suite: 18 cases in three browser engines (Chromium, WebKit, F
 against the database as well as the page. A native **Android app** (Kotlin, Jetpack Compose) has the
 same screens and rules, and **Appium** tests it in the same suite, through a test proxy that can hold
 a request or lose its response. A native **iOS app** (SwiftUI) has the same screens and rules too, with
-fifteen Appium (XCUITest) cases on the iOS simulator, run on a Mac and not yet in CI.
+fifteen Appium (XCUITest) cases and 35 unit tests on the iOS simulator, run on a Mac and not yet in
+CI.
 
 The main flows are also provided as a **Postman collection** for manual use, run by **Newman** in CI.
 A **k6** load test, followed by a database reconciliation, can be triggered on demand.
@@ -483,6 +484,8 @@ xcrun simctl boot "iPhone 17"                    # any iPhone simulator: one boo
 appium --address 127.0.0.1 --port 4723           # another terminal (appium driver install xcuitest, once)
 .venv/bin/pytest tests/ios --ios                 # 15 cases in 20 runs, about 155 seconds
 .venv/bin/python tools/fault_check.py --ios-only # planted defects, iOS cases only
+xcodebuild test -project ios/Wallet.xcodeproj -scheme Wallet -derivedDataPath ios/build \
+    -destination 'platform=iOS Simulator,name=iPhone 17'   # the app's 35 unit tests, about 3 seconds
 ```
 
 On an iPhone 17 simulator (iOS 26, Xcode 27) the four cases passed three runs in a row, about 27
@@ -495,8 +498,8 @@ few minutes once.
 Like the Android tests, they are collected only with `--ios`; with `--ios` but no simulator, Appium
 server or app build, every test fails and says what is missing.
 
-**Next stages.** Every screen is done (2.14), K-08 (2.15), and the three clients measured again (2.16). Still to come: the app's unit
-tests and a macOS CI job; then cases across clients: for example a payment made in the Android app, seen in the web page's History and
+**Next stages.** Every screen is done (2.14), K-08 (2.15), the three clients measured again (2.16) and
+the unit tests (2.17). Still to come: a macOS CI job; then cases across clients: for example a payment made in the Android app, seen in the web page's History and
 refunded in the iOS app, with the database reconciled after each step.
 
 ## 5. Postman and Newman
