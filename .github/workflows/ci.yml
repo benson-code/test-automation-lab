@@ -231,3 +231,79 @@ jobs:
           path: |
             reports/
             appium.log
+
+  ios:
+    name: iOS app (build, unit and UI tests)
+    # GitHub 的標準 macOS runner（arm64）：預設 Xcode 26.6，iOS 模擬器 26.2、26.4、26.5（runner-images 的
+    # macos-26-arm64 說明，2026-10 查的）。App 要 Xcode 26 以上：預設在 main actor 上執行是 Swift 6.2 的設定
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: pip install -r requirements-app.txt
+
+      - name: Show Xcode and the simulator runtimes
+        run: |
+          xcodebuild -version
+          xcrun simctl list runtimes
+
+      # 三個 iOS 版本都有叫「iPhone 17」的模擬器，用名字找不知道會是哪一台：挑最新 iOS 那台的 UDID，
+      # 之後的指令和 pytest（IOS_UDID）都用它
+      - name: Boot an iPhone 17 simulator
+        run: |
+          udid=$(xcrun simctl list devices available --json | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          version = lambda runtime: [int(p) for p in runtime.rsplit("iOS-", 1)[1].split("-")]
+          runtimes = sorted((r for r in devices if "iOS-" in r and any(d["name"] == "iPhone 17" for d in devices[r])), key=version)
+          print(next(d["udid"] for d in devices[runtimes[-1]] if d["name"] == "iPhone 17"))
+          ')
+          echo "IOS_UDID=$udid" >> "$GITHUB_ENV"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl list devices booted
+
+      # 單元測試（ios/WalletTests）包含 DesignTokenParityTests 和 MessagesSpecParityTests。
+      # 同時把 App 編到 UI 測試預設的位置：ios/build/Build/Products/Debug-iphonesimulator/Wallet.app
+      - name: Build the app and run its unit tests
+        run: >
+          xcodebuild test -project ios/Wallet.xcodeproj -scheme Wallet
+          -destination "platform=iOS Simulator,id=$IOS_UDID" -derivedDataPath ios/build
+          -resultBundlePath reports/ios-unit.xcresult
+          -test-timeouts-enabled YES -default-test-execution-time-allowance 60
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Install Appium and the XCUITest driver
+        run: |
+          npm install -g appium@3.8.0
+          appium driver install xcuitest@12.17.1
+
+      - name: Start Appium
+        run: |
+          nohup appium --address 127.0.0.1 --port 4723 --log-timestamp > appium.log 2>&1 &
+          for i in $(seq 30); do curl -sf http://127.0.0.1:4723/status > /dev/null && exit 0; sleep 1; done
+          echo "Appium did not start"; cat appium.log; exit 1
+
+      # 第一個 session 要先編譯 WebDriverAgent，要好幾分鐘（tests/ios/conftest.py 最多等 10 分鐘）
+      - name: iOS UI tests on the simulator
+        run: pytest tests/ios --ios --html=reports/ios-report.html --self-contained-html --junitxml=reports/ios-junit.xml
+
+      - name: Tests catch planted bugs (iOS cases)
+        run: python tools/fault_check.py --ios-only
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-report
+          path: |
+            reports/
+            appium.log
