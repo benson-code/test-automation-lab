@@ -17,7 +17,8 @@ struct Receipt<Actions: View, Rows: View>: View {
         } content: {
             VStack(alignment: .leading, spacing: WalletSpacing.lg) {
                 HStack(spacing: WalletSpacing.sm) {
-                    Image(systemName: "checkmark.circle").foregroundStyle(WalletColors.amountCredit).accessibilityHidden(true)
+                    Image(systemName: "checkmark.circle").font(.system(size: 20)).foregroundStyle(WalletColors.amountCredit)
+                        .frame(width: 24, height: 24).accessibilityHidden(true)
                     Text(heading).walletText(WalletType.titleLarge).foregroundStyle(WalletColors.textPrimary)
                 }
                 HStack(alignment: .firstTextBaseline, spacing: WalletSpacing.sm) {
