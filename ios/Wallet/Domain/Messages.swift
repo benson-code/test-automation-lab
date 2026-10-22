@@ -12,6 +12,9 @@ nonisolated enum Messages {
         "IDEMPOTENCY_KEY_REUSED": "This request conflicts with an earlier one. Start again.",
     ]
 
+    /// The codes with a text of their own (SPEC §6.6); MessagesSpecParityTests compares them with SPEC.md.
+    static var codes: [String] { Array(byCode.keys) }
+
     static func forCode(_ code: String) -> String { byCode[code] ?? "Something went wrong (\(code))." }
 
     static let noAnswerTryAgain = "No answer from the server. Try again."

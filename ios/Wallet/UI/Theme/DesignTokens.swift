@@ -3,8 +3,8 @@ import CoreGraphics
 /// The design tokens of the Figma file "Wallet – UI Spec" (Foundations page), keyed by their Figma
 /// names, copied from the Android app's DesignTokens.kt. The web declares the same values in
 /// web/src/tokens.css. A value is changed in Figma first, then in all three places. Android's
-/// DesignTokenParityTest compares its copy with tokens.css; this copy has no such test yet (planned
-/// with the iOS unit tests, README section 4).
+/// DesignTokenParityTest compares its copy with tokens.css, and DesignTokenParityTests compares this one
+/// (ios/WalletTests).
 ///
 /// Plain values, no SwiftUI types: Theme.swift turns them into colours, fonts and sizes.
 enum DesignTokens {
