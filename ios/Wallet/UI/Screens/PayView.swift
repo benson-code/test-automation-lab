@@ -10,14 +10,38 @@ import SwiftUI
 /// no answer the attempt survives Back: continuing with the same amount shows "no answer" again, and
 /// only a different amount starts a new attempt (K-05).
 ///
-/// Not yet on iOS: keeping the attempt and the receipt when the system ends the app in the background
-/// (K-08, N-01; Android keeps them in its SavedStateHandle).
+/// K-08: the step, the amount and a pending attempt (amount and key) are kept in the scene's saved state
+/// (`Saved`, kept by WalletApp's @SceneStorage), so they survive the system ending the app in the
+/// background. Reopened, the app shows Confirm with "no answer" and Retry resends the saved key: the web
+/// cannot do this (SPEC.md §10). Android keeps the same in its SavedStateHandle.
+///
+/// N-01: the receipt is kept there too. Without it, an app ended on the receipt reopened on Confirm, ready
+/// to send the same amount again with a new key: a second payment (found on Android in 2.3, APP-017).
 @Observable
 final class PayModel {
-    enum Step { case amount, confirm }
+    nonisolated enum Step: String, Codable { case amount, confirm }
 
     struct Receipt {
         let payment: Payment
+        let replayed: Bool
+    }
+
+    /// What is kept for K-08 and N-01. An attempt is kept only while its outcome may still be a charge
+    /// (in flight or no answer), as on Android.
+    nonisolated struct Saved: Codable, Equatable {
+        var amount = ""
+        var step = Step.amount
+        var pendingAmount: String?
+        var pendingKey: String?
+        var receipt: SavedReceipt?
+    }
+
+    /// The receipt's fields, as on Android: what the receipt shows, so a payment that went through is never offered again.
+    nonisolated struct SavedReceipt: Codable, Equatable {
+        let paymentId: String
+        let amount: String
+        let createdAt: String
+        let balanceAfter: String?
         let replayed: Bool
     }
 
@@ -29,9 +53,30 @@ final class PayModel {
     private let api: ApiClient
     private let walletId: String
 
-    init(api: ApiClient, walletId: String) {
+    init(api: ApiClient, walletId: String, saved: Saved? = nil) {
         self.api = api
         self.walletId = walletId
+        guard let saved else { return }
+        amount = saved.amount
+        step = saved.step
+        if let pendingAmount = saved.pendingAmount { attempt.restore(amount: pendingAmount, key: saved.pendingKey) }
+        if let r = saved.receipt {
+            receipt = Receipt(payment: Payment(paymentId: r.paymentId, walletId: walletId, amount: r.amount, refunded: "0.00",
+                                               createdAt: r.createdAt, balanceAfter: r.balanceAfter, refunds: []),
+                              replayed: r.replayed)
+        }
+    }
+
+    /// This screen's state as K-08 and N-01 keep it.
+    var saved: Saved {
+        let keepAttempt = attempt.state == .pending || attempt.state == .unknown
+        return Saved(amount: amount, step: step,
+                     pendingAmount: keepAttempt ? attempt.pendingAmount : nil,
+                     pendingKey: keepAttempt ? attempt.pendingKey : nil,
+                     receipt: receipt.map {
+                         SavedReceipt(paymentId: $0.payment.paymentId, amount: $0.payment.amount, createdAt: $0.payment.createdAt,
+                                      balanceAfter: $0.payment.balanceAfter, replayed: $0.replayed)
+                     })
     }
 
     func load() async {
@@ -62,14 +107,17 @@ struct PayView: View {
     let onBack: () -> Void
     let onDone: () -> Void
     let onViewPayment: (_ paymentId: String) -> Void
+    @Binding private var saved: PayModel.Saved?
     @State private var model: PayModel
 
-    init(api: ApiClient, walletId: String, onBack: @escaping () -> Void, onDone: @escaping () -> Void,
-         onViewPayment: @escaping (String) -> Void) {
+    /// `saved`: the scene's saved state for this screen (K-08), read once here and written on every change.
+    init(api: ApiClient, walletId: String, saved: Binding<PayModel.Saved?>, onBack: @escaping () -> Void,
+         onDone: @escaping () -> Void, onViewPayment: @escaping (String) -> Void) {
         self.onBack = onBack
         self.onDone = onDone
         self.onViewPayment = onViewPayment
-        _model = State(initialValue: PayModel(api: api, walletId: walletId))
+        _saved = saved
+        _model = State(initialValue: PayModel(api: api, walletId: walletId, saved: saved.wrappedValue))
     }
 
     var body: some View {
@@ -83,6 +131,7 @@ struct PayView: View {
             }
         }
         .task { await model.load() }
+        .onChange(of: model.saved) { _, now in saved = now }
     }
 
     private var amountScreen: some View {

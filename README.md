@@ -14,7 +14,7 @@ in the same pytest suite: 17 cases in three browser engines (Chromium, WebKit, F
 against the database as well as the page. A native **Android app** (Kotlin, Jetpack Compose) has the
 same screens and rules, and **Appium** tests it in the same suite, through a test proxy that can hold
 a request or lose its response. A native **iOS app** (SwiftUI) has the same screens and rules too, with
-twelve Appium (XCUITest) cases on the iOS simulator, run on a Mac and not yet in CI.
+fourteen Appium (XCUITest) cases on the iOS simulator, run on a Mac and not yet in CI.
 
 The main flows are also provided as a **Postman collection** for manual use, run by **Newman** in CI.
 A **k6** load test, followed by a database reconciliation, can be triggered on demand.
@@ -444,10 +444,10 @@ the Android and web cases with the same number (IOS-008 tests what APP-008 and W
 
 - **No forwarding.** The iOS simulator shares the Mac's network, so the debug build, launched with
   `-apiBaseUrl`, reaches the test proxy on 127.0.0.1 directly. Android needs `adb reverse` for this.
-- Each test starts the app fresh (`terminate_app`, then `mobile: launchApp` with the launch argument and
-  a pinned time zone), opens a wallet prepared through the API, and checks the database as well as the
-  screen. A test fails if the app is no longer running in the foreground at the end; a failure leaves a
-  screenshot and the UI tree in `reports/ios/`.
+- Each test starts the app fresh (`terminate_app`, the screen state iOS saved deleted, then
+  `mobile: launchApp` with the launch argument and a pinned time zone), opens a wallet prepared through
+  the API, and checks the database as well as the screen. A test fails if the app is no longer running in the
+  foreground at the end; a failure leaves a screenshot and the UI tree in `reports/ios/`.
 - Elements are found by the same hook names, as accessibility ids (SwiftUI `accessibilityIdentifier`),
   and expected texts come from the same `testdata/messages.py`.
 - **No scrolling to read a list.** XCUITest sees the rows outside the visible part of a scroll view, so
@@ -466,6 +466,8 @@ the Android and web cases with the same number (IOS-008 tests what APP-008 and W
 | IOS-009 | Refund 10 of a payment of 30, opened from History; then 25 is refused, since only 20 is left | `refund_overflow` |
 | IOS-010 | Every History row matches the ledger: order, type, amount and balance after, also with 12 entries | |
 | IOS-014 | A top-up that gets no answer offers no Retry and sends no key; the user is asked to check the balance | |
+| IOS-015 | A payment gets no answer; the app goes to the background and its process is killed, as iOS does to free memory. Reopened: Confirm with *no answer*, and Retry resends the saved key; one payment | `no_idempotency`; the app before 2.15 (it reopened on Start) |
+| IOS-017 | The same on the receipt, and on a replayed receipt: reopened, the same receipt and no *Confirm payment* | the app before 2.15; by hand: the receipt left out of the saved state, which reopened on Confirm and took a second payment |
 | IOS-018 | The text styles keep their line heights: ledger rows 67 pt apart and receipt rows 47, as on the web and Android | the build before 2.12 (61 and 43) |
 | IOS-019 | Amounts are in tabular figures: amounts made of 1s are as wide as the same amounts made of 0s, on Confirm, the receipt and Home | the build before 2.13 (*Balance after*, 43 against 62 pt) |
 
@@ -477,19 +479,20 @@ xcodebuild -project ios/Wallet.xcodeproj -scheme Wallet -configuration Debug \
     -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build build
 xcrun simctl boot "iPhone 17"                    # any iPhone simulator: one booted, or choose with IOS_UDID
 appium --address 127.0.0.1 --port 4723           # another terminal (appium driver install xcuitest, once)
-.venv/bin/pytest tests/ios --ios                 # 12 cases in 15 runs, about 110 seconds
+.venv/bin/pytest tests/ios --ios                 # 14 cases in 18 runs, about 140 seconds
 .venv/bin/python tools/fault_check.py --ios-only # planted defects, iOS cases only
 ```
 
 On an iPhone 17 simulator (iOS 26, Xcode 27) the four cases passed three runs in a row, about 27
 seconds each; with IOS-005, 018 and 019 (versions 2.11 to 2.13), the 9 runs passed three times in a
 row, about 69 seconds each; with the second stage's five cases (2.14), the 15 runs passed three times
-in a row, about 107 seconds each. The first session on a machine also builds WebDriverAgent, which takes a
+in a row, about 107 seconds each; with K-08's two cases (2.15), the 18 runs passed three times in a row,
+about 142 seconds each. The first session on a simulator also builds WebDriverAgent, which takes a
 few minutes once.
 Like the Android tests, they are collected only with `--ios`; with `--ios` but no simulator, Appium
 server or app build, every test fails and says what is missing.
 
-**Next stages.** The second stage, every screen, is done (2.14). Still to come: K-08, the app's unit
+**Next stages.** Every screen is done (2.14), and K-08 (2.15). Still to come: the app's unit
 tests and a macOS CI job; then cases across clients: for example a payment made in the Android app, seen in the web page's History and
 refunded in the iOS app, with the database reconciled after each step.
 
@@ -712,3 +715,4 @@ Each of these is recorded in the commit history.
 | Seven small layout differences between the clients, such as *Use another wallet* pinned to the bottom of Home on the web only, the web's hide-balance icon darker than the apps', and the apps' summary cards up to 28 dp taller than the web's | The same measurement, extended to every screen the web and Android share | Figma has no screen frames, so each was decided by the intent written in the code, then consistency within a client, then the majority, and written down as SPEC §7.7. The iOS receipt values became Body/Strong in tabular figures (IOS-019). SPEC §11, 2.13 lists all seven |
 | On the web, amounts were not in tabular figures: the digits in History did not line up, and the receipt's `120.00` was 7 px narrower than in the apps | The same comparison, measuring every hook at the same width. The CSS said `tabular-nums`, and the development server showed it | Vite's CSS minifier moved `font-variant-numeric` before the `font` shorthand in the same rule, and the shorthand reset it; a list row's text style also reset what the row passed down. The text styles are now longhands. WEB-017 measures the drawn digits and failed in all three engines before the fix |
 | With the amount field's label detached, leaving only the placeholder `0.00`, the axe scan still passed | The mutation check for WEB-015: the mutant survived in all three engines | axe counts a placeholder as a field's name; a placeholder disappears as soon as the user types. WEB-015 now also requires every input to be tied to a visible `<label>` |
+| A test could start on the previous test's screen | Choosing how the iOS app keeps K-08's state: a throwaway app on the simulator, ended in eight ways | iOS restores the screen state it saved when the app last went to the background even after the app is ended in the foreground, which is how each test closes the app before the next. The tests' fixture now deletes that state before every launch, as Android's `force-stop` does; without it, the case after IOS-017 did not start on Start |

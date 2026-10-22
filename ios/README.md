@@ -2,7 +2,7 @@
 
 The native iOS client of the wallet: Swift and SwiftUI, the same rules as the web page (`../web/`) and
 the Android app (`../android/`), all defined by [`../SPEC.md`](../SPEC.md). Its Appium tests live with
-the rest of the suite, in [`../tests/ios/`](../tests/ios/) (IOS-001 to 006, 008 to 010, 014, 018 and 019;
+the rest of the suite, in [`../tests/ios/`](../tests/ios/) (IOS-001 to 006, 008 to 010, 014, 015, 017 to 019;
 how to run them: the main README, section 4).
 
 **Screens.** Every screen of the web page and the Android app, in two stages. The first (SPEC 2.10):
@@ -10,7 +10,8 @@ Start (create or open a wallet), Home (balance, the latest entries) and Pay (amo
 receipt, with the four Confirm states and the `replayed` receipt). The second (SPEC 2.14): the tab bar,
 History (grouped by day), Top up (no Retry after no answer, K-07), Payment detail with refunds (Retry
 with the same key), payment rows that open their detail, and *View payment* on the payment receipt.
-Not yet: keeping a pending attempt when iOS ends the app in the background (K-08), unit tests, and CI.
+Since SPEC 2.15 a pending payment and its receipt survive iOS ending the app in the background (K-08,
+IOS-015 and IOS-017), kept in the scene's saved state (`@SceneStorage`). Not yet: unit tests and CI.
 
 ## Build
 
@@ -54,9 +55,10 @@ ios/
 ├── Wallet.xcodeproj/
 ├── Info.plist                 Merged with Xcode's generated keys: local HTTP, the Inter fonts
 └── Wallet/
-    ├── WalletApp.swift        Entry point and the routes (SPEC §4); Payment detail goes back to History
+    ├── WalletApp.swift        Entry point and the routes (SPEC §4); Payment detail goes back to History;
+    │                          the screen and Pay's state kept in the scene's saved state (K-08)
     ├── Data/                  ApiConfig (launch argument), ApiClient (URLSession), Models (parsed by hand)
-    ├── Domain/                Money (integer cents), Formats, Messages, Attempt (K-01 to K-05)
+    ├── Domain/                Money (integer cents), Formats, Messages, Attempt (K-01 to K-05, K-08)
     └── UI/
         ├── Theme/             DesignTokens (Figma names), Theme (colours, spacing, text styles)
         ├── Components/        One per Figma component: WalletButton, AmountField, Message, TopBar, TabBar, rows, BalanceCard

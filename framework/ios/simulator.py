@@ -5,7 +5,12 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import signal
 import subprocess
+import time
+from pathlib import Path
 
 BUNDLE_ID = "lab.wallet"
 
@@ -40,3 +45,40 @@ class Simulator:
         except SimctlError:
             pass                                       # 本來就沒裝
         simctl("install", self.udid, app_path)
+
+    def saved_state(self) -> Path:
+        """App 的畫面狀態（@SceneStorage）：進背景時 iOS 寫到這裡，App 在背景被結束、再打開時用它還原。"""
+        data = simctl("get_app_container", self.udid, BUNDLE_ID, "data").strip()
+        return Path(data) / "Library" / "Saved Application State" / f"{BUNDLE_ID}.savedState"
+
+    def clear_saved_state(self) -> None:
+        """丟掉保存的畫面狀態，下次打開從頭開始（Android 的 force-stop）。
+
+        只結束 App 不夠：在前景被結束，iOS 還是會還原上一次進背景時存的狀態（2.15 實測）。
+        """
+        shutil.rmtree(self.saved_state(), ignore_errors=True)
+
+    def _pid(self) -> int | None:
+        """App 的程序；模擬器裡的程序就是 Mac 上的程序，PID 從模擬器的 launchctl 查。"""
+        label = f"UIKitApplication:{BUNDLE_ID}["
+        for line in simctl("spawn", self.udid, "launchctl", "list").splitlines():
+            pid, _, name = line.split("\t")
+            if name.startswith(label) and pid.isdigit():
+                return int(pid)
+        return None
+
+    def kill(self, timeout: float = 10) -> None:
+        """像系統在背景回收記憶體那樣直接殺掉 App 的程序（SIGKILL），App 沒有機會做任何事。
+
+        等到程序真的消失才回來：還沒消失就叫 App 起來，iOS 會當成它還在，結果什麼都沒打開。
+        """
+        pid = self._pid()
+        if pid is None:
+            raise SimctlError(f"{BUNDLE_ID} is not running")
+        os.kill(pid, signal.SIGKILL)
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if self._pid() is None:
+                return
+            time.sleep(0.2)
+        raise SimctlError(f"{BUNDLE_ID} was still running {timeout:.0f} s after SIGKILL")
