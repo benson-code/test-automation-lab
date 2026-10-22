@@ -118,7 +118,7 @@ def app(request, driver, proxy, simulator):
     """每個測試一個全新啟動的 App，停在開始畫面，API 位址指向測試代理伺服器。
 
     結束時檢查 App 還開著：畫面看起來對，程式也可能已經掛了（Android 版檢查崩潰紀錄，這裡檢查
-    App 是否還在前景執行）。失敗時留下截圖和畫面結構（XCUITest 看到的樹）。
+    App 是否還在前景執行）。失敗時留下截圖、畫面結構（XCUITest 看到的樹）和代理伺服器看到的請求。
     """
     proxy.reset()
     driver.terminate_app(BUNDLE_ID)
@@ -133,6 +133,9 @@ def app(request, driver, proxy, simulator):
         out.mkdir(parents=True, exist_ok=True)
         driver.get_screenshot_as_file(str(out / "screen.png"))
         (out / "screen.xml").write_text(driver.page_source, encoding="utf-8")
+        # App 送了哪些請求、各自有沒有回應：畫面停在某一步時，分得出是沒送出去，還是送了沒回應
+        (out / "proxy.txt").write_text("".join(f"{e.method} {e.path} key={e.key} status={e.status}\n"
+                                               for e in proxy.exchanges()), encoding="utf-8")
     state = driver.query_app_state(BUNDLE_ID)
     assert state == RUNNING_IN_FOREGROUND, f"the app is no longer running in the foreground (state {state}): did it crash?"
 
