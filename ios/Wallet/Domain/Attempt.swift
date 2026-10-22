@@ -43,6 +43,9 @@ final class Attempt {
     /// The amount of the attempt still waiting for an answer, or nil.
     var pendingAmount: String? { pending?.amount }
 
+    /// The key of that attempt, or nil (for the process-death rule K-08, which keeps it).
+    var pendingKey: String? { pending?.key }
+
     /// Sends `amount` with `send`, unless a request is already in flight (then returns nil at once).
     /// Returns the API's result; `state` tells the screen what to show.
     func submit<T>(_ amount: String, send: (_ amount: String, _ key: String?) async -> ApiResult<T>) async -> ApiResult<T>? {
@@ -65,6 +68,14 @@ final class Attempt {
             state = .unknown
         }
         return result
+    }
+
+    /// Brings back an attempt kept when the system ended the app in the background (K-08). Its outcome is
+    /// unknown: the request may or may not have reached the server, so the screen offers Retry with the same key.
+    func restore(amount: String, key: String?) {
+        if inFlight { return }
+        pending = Sent(amount: amount, key: key)
+        state = .unknown
     }
 
     /// Ends the attempt without sending (the user changed the amount, or left a refusal). Ignored while in flight.
