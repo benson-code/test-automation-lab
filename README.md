@@ -10,11 +10,11 @@ systems: **double charges on retry, overdrafts under concurrency, refunds that e
 payment, rounding errors, and half-completed transfers.**
 
 A **mobile web front end** (React) is served by the same API, and **Playwright for Python** tests it
-in the same pytest suite: 17 cases in three browser engines (Chromium, WebKit, Firefox), checked
+in the same pytest suite: 18 cases in three browser engines (Chromium, WebKit, Firefox), checked
 against the database as well as the page. A native **Android app** (Kotlin, Jetpack Compose) has the
 same screens and rules, and **Appium** tests it in the same suite, through a test proxy that can hold
 a request or lose its response. A native **iOS app** (SwiftUI) has the same screens and rules too, with
-fourteen Appium (XCUITest) cases on the iOS simulator, run on a Mac and not yet in CI.
+fifteen Appium (XCUITest) cases on the iOS simulator, run on a Mac and not yet in CI.
 
 The main flows are also provided as a **Postman collection** for manual use, run by **Newman** in CI.
 A **k6** load test, followed by a database reconciliation, can be triggered on demand.
@@ -88,9 +88,9 @@ test-automation-lab/
 ├── tests/                     (3) Test case layer
 │   ├── conftest.py            API startup, fixtures, --env / --target_case_ids / --target_marks
 │   ├── test_*.py              100 API tests
-│   ├── web/                   75 web UI test runs (Playwright): three engines, failure evidence
+│   ├── web/                   78 web UI test runs (Playwright): three engines, failure evidence
 │   ├── app/                   58 app UI test runs (Appium): device, displays, test proxy, failure evidence
-│   └── ios/                   15 iOS UI test runs (Appium XCUITest): simulator, test proxy, failure evidence
+│   └── ios/                   20 iOS UI test runs (Appium XCUITest): simulator, test proxy, failure evidence
 ├── SPEC.md                    Specification for the clients (web, Android, iOS): rules, screens, hooks, cases
 ├── android/                   Native Android app: Kotlin + Jetpack Compose
 ├── ios/                       Native iOS app: Swift + SwiftUI
@@ -290,6 +290,7 @@ server, `api` and `db` fixtures, its marks and its `--target_case_ids` / `--targ
 | WEB-015 | 17 states pass axe-core's WCAG 2.2 A and AA rules; every input has a visible label | mutations `balance_toggle_unnamed`, `amount_label_detached` |
 | WEB-016 | Tab and Shift+Tab through every screen: focus is never entirely behind the top bar or tab bar | mutation `no_scroll_padding` |
 | WEB-017 | Amounts are drawn in tabular figures on every screen, measured in the browser: ten 1s as wide as ten 0s | the defect itself (the build before 2.11) |
+| WEB-018 | A card's hairline takes no room: every card's first child starts exactly the card's padding below its top, as in the apps | the defect itself (the build before 2.16) |
 
 **Simulating the network.** `framework/web/network.py` uses Playwright's request interception; the
 API is not changed.
@@ -319,7 +320,7 @@ API is not changed.
 .venv/bin/python -m playwright install chromium webkit firefox
 sudo .venv/bin/python -m playwright install-deps webkit   # once: the libraries WebKit needs on Linux
 
-.venv/bin/pytest tests/web                       # 75 runs, 30 to 90 seconds
+.venv/bin/pytest tests/web                       # 78 runs, 30 to 90 seconds
 .venv/bin/python tools/fault_check.py --web-only # planted defects, web cases only
 .venv/bin/python tools/web_mutation_check.py     # page mutations; needs Node on PATH
 ```
@@ -468,8 +469,9 @@ the Android and web cases with the same number (IOS-008 tests what APP-008 and W
 | IOS-014 | A top-up that gets no answer offers no Retry and sends no key; the user is asked to check the balance | |
 | IOS-015 | A payment gets no answer; the app goes to the background and its process is killed, as iOS does to free memory. Reopened: Confirm with *no answer*, and Retry resends the saved key; one payment | `no_idempotency`; the app before 2.15 (it reopened on Start) |
 | IOS-017 | The same on the receipt, and on a replayed receipt: reopened, the same receipt and no *Confirm payment* | the app before 2.15; by hand: the receipt left out of the saved state, which reopened on Confirm and took a second payment |
-| IOS-018 | The text styles keep their line heights: ledger rows 67 pt apart and receipt rows 47, as on the web and Android | the build before 2.12 (61 and 43) |
+| IOS-018 | The text styles keep their line heights: ledger rows 67 pt apart and receipt rows 47, as on the web and Android; six History rows exactly 5 × 67 | the build before 2.12 (61 and 43); the build before 2.16 (338 for 335) |
 | IOS-019 | Amounts are in tabular figures: amounts made of 1s are as wide as the same amounts made of 0s, on Confirm, the receipt and Home | the build before 2.13 (*Balance after*, 43 against 62 pt) |
+| IOS-020 | Icons take their 24 pt box: a message's text starts 72 pt from the edge, the receipt heading 52, as on the web and Android | the build before 2.16 (67 and 47) |
 
 **Running** (macOS with Xcode 26 or later, Appium 3 with the xcuitest driver):
 
@@ -479,7 +481,7 @@ xcodebuild -project ios/Wallet.xcodeproj -scheme Wallet -configuration Debug \
     -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build build
 xcrun simctl boot "iPhone 17"                    # any iPhone simulator: one booted, or choose with IOS_UDID
 appium --address 127.0.0.1 --port 4723           # another terminal (appium driver install xcuitest, once)
-.venv/bin/pytest tests/ios --ios                 # 14 cases in 18 runs, about 140 seconds
+.venv/bin/pytest tests/ios --ios                 # 15 cases in 20 runs, about 155 seconds
 .venv/bin/python tools/fault_check.py --ios-only # planted defects, iOS cases only
 ```
 
@@ -487,12 +489,13 @@ On an iPhone 17 simulator (iOS 26, Xcode 27) the four cases passed three runs in
 seconds each; with IOS-005, 018 and 019 (versions 2.11 to 2.13), the 9 runs passed three times in a
 row, about 69 seconds each; with the second stage's five cases (2.14), the 15 runs passed three times
 in a row, about 107 seconds each; with K-08's two cases (2.15), the 18 runs passed three times in a row,
-about 142 seconds each. The first session on a simulator also builds WebDriverAgent, which takes a
+about 142 seconds each; with IOS-020 and IOS-018's second test (2.16), the 20 runs passed three
+times in a row, about 156 seconds each. The first session on a simulator also builds WebDriverAgent, which takes a
 few minutes once.
 Like the Android tests, they are collected only with `--ios`; with `--ios` but no simulator, Appium
 server or app build, every test fails and says what is missing.
 
-**Next stages.** Every screen is done (2.14), and K-08 (2.15). Still to come: the app's unit
+**Next stages.** Every screen is done (2.14), K-08 (2.15), and the three clients measured again (2.16). Still to come: the app's unit
 tests and a macOS CI job; then cases across clients: for example a payment made in the Android app, seen in the web page's History and
 refunded in the iOS app, with the database reconciled after each step.
 
@@ -716,3 +719,6 @@ Each of these is recorded in the commit history.
 | On the web, amounts were not in tabular figures: the digits in History did not line up, and the receipt's `120.00` was 7 px narrower than in the apps | The same comparison, measuring every hook at the same width. The CSS said `tabular-nums`, and the development server showed it | Vite's CSS minifier moved `font-variant-numeric` before the `font` shorthand in the same rule, and the shorthand reset it; a list row's text style also reset what the row passed down. The text styles are now longhands. WEB-017 measures the drawn digits and failed in all three engines before the fix |
 | With the amount field's label detached, leaving only the placeholder `0.00`, the axe scan still passed | The mutation check for WEB-015: the mutant survived in all three engines | axe counts a placeholder as a field's name; a placeholder disappears as soon as the user types. WEB-015 now also requires every input to be tied to a visible `<label>` |
 | A test could start on the previous test's screen | Choosing how the iOS app keeps K-08's state: a throwaway app on the simulator, ended in eight ways | iOS restores the screen state it saved when the app last went to the background even after the app is ended in the foreground, which is how each test closes the app before the next. The tests' fixture now deletes that state before every launch, as Android's `force-stop` does; without it, the case after IOS-017 did not start on Start |
+| On Payment detail, everything under the summary card sat up to 4 px lower on the web than in the apps | Measuring History, Top up and Payment detail on the three clients at 402 wide, every text's centre from the top bar (2.16) | The web's card border took 1 px above and below; the apps draw the hairline inside the card. The web now draws it as an inset box shadow, which looks the same and takes no room. WEB-018 failed in all three engines before the change |
+| In iOS messages and on the receipt heading, the text started 5 pt left of where the web and Android put it | The same measurement, then side-by-side crops of the screenshots | The SF Symbols had no frame, so they were only as wide as the symbol, about 19 pt; the other clients' icons are 24. They now take a 24 pt box. IOS-020 measured 67 and 47 pt before the change, 72 and 52 after |
+| Every line of text on iOS was 1/3 pt taller than its token, so the sixth History row sat 3 pt lower than on the other clients | The same measurement: each row was within IOS-018's 1 pt, but the rows added up | A probe build reported SwiftUI's own heights: a Text is one pixel taller than the font's line height, on 2x and 3x screens alike (1/3 pt on an iPhone 17, 1/2 on an iPhone SE). That pixel now comes off the padding, and rows are exactly 66 pt plus the hairline on both. IOS-018 now also checks six rows together: 338 pt before the change, 335 after |
