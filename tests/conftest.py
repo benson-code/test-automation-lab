@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # ---- 命令列參數 ----------------------------------------------------------------
 
 def pytest_addoption(parser):
-    g = parser.getgroup("payment-api-quality-lab")
+    g = parser.getgroup("test-automation-lab")
     g.addoption("--env", default="local", choices=["local", "external"],
                 help="local：自己起 API；external：打 --base-url 指定的 API")
     g.addoption("--base-url", default=None, help="external 模式要打的 API")

@@ -1,7 +1,7 @@
 {
   "info": {
     "_postman_id": "6f1c2a4e-8d3b-4c5a-9e7f-0a1b2c3d4e5f",
-    "name": "payment-api-quality-lab",
+    "name": "test-automation-lab",
     "description": "自建錢包／支付 API 的 Postman collection（練習專案，不連任何真實金流）。\n\n01–05 照順序跑，前一支存下的 ID 給後一支用；06 搭配 CSV 資料驅動。\n每支 request 的測試名稱以案例編號開頭（PM-xx、AMT-xx）。\n\n併發（同時扣款、同時重送）不在這裡：Postman 一次只送一個請求，那些交給 pytest。",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },

@@ -1,6 +1,6 @@
-# payment-api-quality-lab
+# test-automation-lab
 
-[![CI](https://github.com/benson-code/payment-api-quality-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/benson-code/payment-api-quality-lab/actions/workflows/ci.yml)
+[![CI](https://github.com/benson-code/test-automation-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/benson-code/test-automation-lab/actions/workflows/ci.yml)
 
 > **Self-built practice project, not production work.** The wallet/payment API under test was written
 > for this project as a target for testing. It is not connected to any real payment system.
@@ -63,7 +63,7 @@ retries, and the retry is recognised instead of charged again:
 ## 1. Architecture
 
 ```
-payment-api-quality-lab/
+test-automation-lab/
 ├── app/                       System under test: FastAPI + SQLite
 │   ├── main.py                HTTP routes, uniform error format
 │   ├── service.py             Business rules (payments, refunds, transfers, idempotency)
