@@ -23,7 +23,7 @@ from app.responses import (Health, Payment, PaymentDetail, Refund, TopUp, Transa
 DB_PATH = os.environ.get("DB_PATH", "wallet.db")
 init_db(DB_PATH)
 
-app = FastAPI(title="payment-api-quality-lab")
+app = FastAPI(title="test-automation-lab")
 
 
 # ---- 錯誤：全部轉成統一格式 ---------------------------------------------------
