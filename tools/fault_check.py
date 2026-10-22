@@ -68,7 +68,8 @@ APP_EXPECTED = {           # SPEC.md §8：（案例編號, 測試名稱）；{d
 APK = ROOT / "android" / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk"
 
 IOS_EXPECTED = {           # SPEC.md §8：（案例編號, 測試名稱）
-    "no_idempotency": [("IOS-008", "test_lost_response_then_retry_charges_once")],
+    "no_idempotency": [("IOS-008", "test_lost_response_then_retry_charges_once"),
+                       ("IOS-015", "test_process_death_with_the_outcome_unknown")],
     "refund_overflow": [("IOS-009", "test_partial_refund_then_the_cumulative_limit")],
     "float_math": [("IOS-004", "test_top_up_19_99_keeps_every_cent")],
 }
