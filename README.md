@@ -14,8 +14,8 @@ in the same pytest suite: 18 cases in three browser engines (Chromium, WebKit, F
 against the database as well as the page. A native **Android app** (Kotlin, Jetpack Compose) has the
 same screens and rules, and **Appium** tests it in the same suite, through a test proxy that can hold
 a request or lose its response. A native **iOS app** (SwiftUI) has the same screens and rules too, with
-fifteen Appium (XCUITest) cases and 35 unit tests on the iOS simulator, run on a Mac and not yet in
-CI.
+fifteen Appium (XCUITest) cases and 35 unit tests on the iOS simulator, run in CI on GitHub's macOS
+runner.
 
 The main flows are also provided as a **Postman collection** for manual use, run by **Newman** in CI.
 A **k6** load test, followed by a database reconciliation, can be triggered on demand.
@@ -447,7 +447,8 @@ the Android and web cases with the same number (IOS-008 tests what APP-008 and W
 - **No forwarding.** The iOS simulator shares the Mac's network, so the debug build, launched with
   `-apiBaseUrl`, reaches the test proxy on 127.0.0.1 directly. Android needs `adb reverse` for this.
 - Each test starts the app fresh (`terminate_app`, the screen state iOS saved deleted, then
-  `mobile: launchApp` with the launch argument and a pinned time zone), opens a wallet prepared through
+  `simctl launch --terminate-running-process` with the launch argument and a pinned time zone, and a
+  check of the app's own command line that the argument is there), opens a wallet prepared through
   the API, and checks the database as well as the screen. A test fails if the app is no longer running in the
   foreground at the end; a failure leaves a screenshot and the UI tree in `reports/ios/`.
 - Elements are found by the same hook names, as accessibility ids (SwiftUI `accessibilityIdentifier`),
@@ -499,7 +500,7 @@ Like the Android tests, they are collected only with `--ios`; with `--ios` but n
 server or app build, every test fails and says what is missing.
 
 **Next stages.** Every screen is done (2.14), K-08 (2.15), the three clients measured again (2.16) and
-the unit tests (2.17). Still to come: a macOS CI job; then cases across clients: for example a payment made in the Android app, seen in the web page's History and
+the unit tests (2.17), and all of it in CI on macOS (2.18). Still to come: cases across clients: for example a payment made in the Android app, seen in the web page's History and
 refunded in the iOS app, with the database reconciled after each step.
 
 ## 5. Postman and Newman
@@ -635,7 +636,7 @@ SSH (`ssh -N -L 18400:127.0.0.1:8400 <server>`) and browse to `http://localhost:
 
 ## 8. CI
 
-`.github/workflows/ci.yml` runs six jobs on every push to `main` and on every pull request:
+`.github/workflows/ci.yml` runs seven jobs on every push to `main` and on every pull request:
 
 1. **API tests**: starts the API in the background, waits for `/health`, runs the smoke tests and
    stops if they fail, then runs the full regression suite and uploads the pytest-html and JUnit
@@ -657,18 +658,26 @@ SSH (`ssh -N -L 18400:127.0.0.1:8400 <server>`) and browse to `http://localhost:
    UiAutomator2 driver. Runs the app tests in both display configurations, then
    `tools/fault_check.py --app-only` (the planted defects against the app cases), and uploads the
    report with any failure screenshots and UI trees, and the Appium log.
+7. **iOS app (build, unit and UI tests)**: on GitHub's standard macOS runner (`macos-26`, arm64, Xcode
+   26.6 by default), boots the iPhone 17 of the newest iOS runtime by UDID (every runtime on the image
+   has one), runs the app's 35 unit tests with `xcodebuild test`, which also builds the app for the UI
+   tests, installs Appium 3 with the XCUITest driver, runs the iOS tests, then
+   `tools/fault_check.py --ios-only`, and uploads the report, the unit tests' result bundle, any failure
+   screenshots, UI trees and proxy logs, and the Appium log. The first session builds WebDriverAgent; the
+   job took 15 to 23 minutes in its first three green runs.
 
 A separate, manually triggered `load.yml` runs the k6 load test followed by the reconciliation
-(section 6). The iOS app tests are not in CI yet: they need a macOS runner (section 4, next stages).
+(section 6).
 
 Which tests fail under `race` depends on timing (six locally, five in CI), so `fault_check.py`
 requires only the two that fail every time: CON-001 and the balance-equals-ledger invariant.
 
 CI runs on GitHub's ARM64 runners (`ubuntu-24.04-arm`), the same architecture as the development
 machine (OCI Ampere), so a local pass cannot turn into a CI failure through architecture differences.
-The two Android jobs are the exception and run on x86-64 (`ubuntu-24.04`): Google ships the build
-tools for x86-64 Linux only, and the emulator needs KVM, which GitHub's x64 runners provide. The app
-does not depend on the architecture: its only native library, from AndroidX, is built for both.
+Two kinds of job are the exception. The iOS job runs on macOS (arm64), the only system with Xcode and
+the iOS simulator. The two Android jobs run on x86-64 (`ubuntu-24.04`): Google ships the build
+tools for x86-64 Linux only, and the emulator needs KVM, which GitHub's x64 runners provide. The
+Android app does not depend on the architecture: its only native library, from AndroidX, is built for both.
 
 ## 9. AI-assisted development
 
@@ -725,3 +734,4 @@ Each of these is recorded in the commit history.
 | On Payment detail, everything under the summary card sat up to 4 px lower on the web than in the apps | Measuring History, Top up and Payment detail on the three clients at 402 wide, every text's centre from the top bar (2.16) | The web's card border took 1 px above and below; the apps draw the hairline inside the card. The web now draws it as an inset box shadow, which looks the same and takes no room. WEB-018 failed in all three engines before the change |
 | In iOS messages and on the receipt heading, the text started 5 pt left of where the web and Android put it | The same measurement, then side-by-side crops of the screenshots | The SF Symbols had no frame, so they were only as wide as the symbol, about 19 pt; the other clients' icons are 24. They now take a 24 pt box. IOS-020 measured 67 and 47 pt before the change, 72 and 52 after |
 | Every line of text on iOS was 1/3 pt taller than its token, so the sixth History row sat 3 pt lower than on the other clients | The same measurement: each row was within IOS-018's 1 pt, but the rows added up | A probe build reported SwiftUI's own heights: a Text is one pixel taller than the font's line height, on 2x and 3x screens alike (1/3 pt on an iPhone 17, 1/2 on an iPhone SE). That pixel now comes off the padding, and rows are exactly 66 pt plus the hairline on both. IOS-018 now also checks six rows together: 338 pt before the change, 335 after |
+| In CI only, after a test killed the app and opened it again, the app could not reach the test proxy: Retry sent nothing, and Home said *No answer from the server.* | The new iOS CI job failed twice, in IOS-015 both times and in IOS-017 once, while IOS-015 passed 25 times in a row on the Mac. The screenshot could not tell a lost tap from a request without an answer, so failing tests now also keep the proxy's requests: in the second failure, no request had reached it after the relaunch | Appium's `mobile: launchApp` does not relaunch an app that is already running: it brings it to the front, and the launch arguments do not apply (measured on the Mac: same process, the old `-apiBaseUrl`). The tests now launch with `simctl launch --terminate-running-process` and read the app's own command line after every launch. Whether a process was already there before those two relaunches was not seen: in the twelve relaunches of the next three CI runs, all green, there was none |

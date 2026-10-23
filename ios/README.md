@@ -12,11 +12,12 @@ History (grouped by day), Top up (no Retry after no answer, K-07), Payment detai
 with the same key), payment rows that open their detail, and *View payment* on the payment receipt.
 Since SPEC 2.15 a pending payment and its receipt survive iOS ending the app in the background (K-08,
 IOS-015 and IOS-017), kept in the scene's saved state (`@SceneStorage`). Unit tests since SPEC 2.17
-(below). Not yet: CI.
+(below). In CI since SPEC 2.18 (main README, section 8).
 
 ## Build
 
-Built and tested with Xcode 27 and the iOS 26 simulator. It needs Xcode 26 or later: the code runs on
+Built and tested with Xcode 27 and the iOS 26 simulator on the Mac, and with Xcode 26.6 and iOS 26.5 in CI.
+It needs Xcode 26 or later: the code runs on
 the main actor by default (`SWIFT_DEFAULT_ACTOR_ISOLATION`), a Swift 6.2 setting. The app supports
 iOS 17 and later. No signing is needed for the simulator.
 
