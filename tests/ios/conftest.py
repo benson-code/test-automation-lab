@@ -107,10 +107,13 @@ def driver(request, simulator, installed):
     d.quit()
 
 
-def launch(driver, proxy) -> None:
+def launch(simulator, proxy) -> None:
     # 和 Android 的啟動參數 apiBaseUrl 同名；只有 Debug 版會讀（ApiConfig.swift）
-    driver.execute_script("mobile: launchApp", {"bundleId": BUNDLE_ID, "arguments": ["-apiBaseUrl", proxy.url],
-                                                "environment": {"TZ": TIMEZONE}})
+    simulator.launch(["-apiBaseUrl", proxy.url], {"TZ": TIMEZONE})
+    # 沒帶到代理伺服器的位址，App 連的是預設位址，之後每一步都是「沒有回應」：在這裡就說清楚
+    arguments = simulator.arguments()
+    assert arguments is not None and proxy.url in arguments, \
+        f"the app runs with {arguments}, not with the test proxy's address"
 
 
 @pytest.fixture
@@ -118,13 +121,13 @@ def app(request, driver, proxy, simulator):
     """每個測試一個全新啟動的 App，停在開始畫面，API 位址指向測試代理伺服器。
 
     結束時檢查 App 還開著：畫面看起來對，程式也可能已經掛了（Android 版檢查崩潰紀錄，這裡檢查
-    App 是否還在前景執行）。失敗時留下截圖和畫面結構（XCUITest 看到的樹）。
+    App 是否還在前景執行）。失敗時留下截圖、畫面結構（XCUITest 看到的樹）和代理伺服器看到的請求。
     """
     proxy.reset()
     driver.terminate_app(BUNDLE_ID)
     # 上一個測試若讓 App 進過背景（IOS-015、017），iOS 會還原那時的畫面：先丟掉，每個測試都從開始畫面起
     simulator.clear_saved_state()
-    launch(driver, proxy)
+    launch(simulator, proxy)
     yield StartScreen(driver).wait()
 
     failed = getattr(request.node, "rep_call", None) is not None and request.node.rep_call.failed
@@ -133,12 +136,15 @@ def app(request, driver, proxy, simulator):
         out.mkdir(parents=True, exist_ok=True)
         driver.get_screenshot_as_file(str(out / "screen.png"))
         (out / "screen.xml").write_text(driver.page_source, encoding="utf-8")
+        # App 送了哪些請求、各自有沒有回應：畫面停在某一步時，分得出是沒送出去，還是送了沒回應
+        (out / "proxy.txt").write_text("".join(f"{e.method} {e.path} key={e.key} status={e.status}\n"
+                                               for e in proxy.exchanges()), encoding="utf-8")
     state = driver.query_app_state(BUNDLE_ID)
     assert state == RUNNING_IN_FOREGROUND, f"the app is no longer running in the foreground (state {state}): did it crash?"
 
 
 @pytest.fixture
-def kill_and_reopen(driver, proxy, simulator):
+def kill_and_reopen(request, driver, proxy, simulator):
     """放到背景、像系統那樣殺掉程序、再打開（K-08）。Android 的 send_to_background、kill_background_process、
     reopen_from_launcher。
 
@@ -146,6 +152,7 @@ def kill_and_reopen(driver, proxy, simulator):
     不能靠「狀態檔更新了」來等：內容沒變時 iOS 不一定重寫，沒有保存狀態的 App 也永遠等不到。
     重新打開時帶一樣的啟動參數，App 才會連回測試代理伺服器；啟動參數和還原畫面無關。
     """
+    ARTIFACTS.mkdir(parents=True, exist_ok=True)
     def run(timeout: float = 10) -> None:
         driver.execute_script("mobile: pressButton", {"name": "home"})
         deadline = time.monotonic() + timeout
@@ -154,7 +161,12 @@ def kill_and_reopen(driver, proxy, simulator):
                 raise AssertionError(f"the app was not suspended in the background within {timeout:.0f} s")
             time.sleep(0.2)
         simulator.kill()
-        launch(driver, proxy)
+        # 重開之前 App 是不是已經在跑（不是我們啟動的）：記下來，CI 上才看得出系統會不會自己把它叫起來
+        before = simulator.arguments()
+        with (ARTIFACTS / "relaunches.txt").open("a", encoding="utf-8") as log:
+            log.write(f"{request.node.nodeid}: before the relaunch, "
+                      f"{'no process' if before is None else f'a process was running with {before}'}\n")
+        launch(simulator, proxy)
     return run
 
 

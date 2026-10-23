@@ -58,6 +58,28 @@ class Simulator:
         """
         shutil.rmtree(self.saved_state(), ignore_errors=True)
 
+    def launch(self, arguments: list[str], environment: dict[str, str]) -> None:
+        """帶啟動參數和環境變數啟動 App；App 若已經在跑，先把它結束，參數才一定生效。
+
+        不用 Appium 的 mobile: launchApp：App 已經在跑時，它只把 App 叫到前景，帶的參數不會生效
+        （本機實測：pid 不變，參數還是舊的）。CI 上 App 被殺掉之後重開，有兩次連不到測試代理伺服器，
+        請求一個都沒到：最可能是重開之前程序已經在了，App 沒帶參數、連到預設位址。重開前有沒有程序，
+        kill_and_reopen 會記在 reports/ios/relaunches.txt。
+        """
+        env = {**os.environ, **{f"SIMCTL_CHILD_{k}": v for k, v in environment.items()}}
+        r = subprocess.run(["xcrun", "simctl", "launch", "--terminate-running-process", self.udid, BUNDLE_ID,
+                            *arguments], capture_output=True, text=True, timeout=120, env=env)
+        if r.returncode != 0:
+            raise SimctlError(f"simctl launch: {r.stderr.strip() or r.stdout.strip()}")
+
+    def arguments(self) -> list[str] | None:
+        """App 程序的命令列參數，不含執行檔本身；App 沒在跑是 None（有程序、沒帶參數是空的清單）。"""
+        pid = self._pid()
+        if pid is None:
+            return None
+        out = subprocess.run(["ps", "-o", "args=", "-p", str(pid)], capture_output=True, text=True).stdout.split()
+        return out[1:]
+
     def _pid(self) -> int | None:
         """App 的程序；模擬器裡的程序就是 Mac 上的程序，PID 從模擬器的 launchctl 查。"""
         label = f"UIKitApplication:{BUNDLE_ID}["
