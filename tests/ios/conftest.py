@@ -16,6 +16,7 @@ API，而是連測試代理伺服器（framework/app/proxy.py，和 Android 的�
 """
 from __future__ import annotations
 
+import os
 import re
 import time
 from pathlib import Path
@@ -102,6 +103,11 @@ def driver(request, simulator, installed):
     options.no_reset = True                       # 每個測試自己重新啟動 App（app fixture）
     options.new_command_timeout = 300
     options.wda_launch_timeout = 600_000          # 第一次要編譯 WebDriverAgent，最多等 10 分鐘
+    # CI 上不要模擬器的視窗：沒設定時，XCUITest driver 看到用 simctl 開好、沒有視窗的模擬器，會把它
+    # 關掉、帶著視窗重開，CI 上重開花了 28 到 123 秒，超過 120 秒，整組測試就開不了 session。
+    # 只在 CI（GitHub Actions 設定 CI=true）：headless 時 driver 會把開著的 Simulator 視窗程式關掉，
+    # 在自己的 Mac 上那可能是別人正在用的視窗
+    options.is_headless = os.environ.get("CI") == "true"
     d = webdriver.Remote(url, options=options)
     yield d
     d.quit()
