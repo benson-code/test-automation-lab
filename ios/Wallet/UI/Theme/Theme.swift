@@ -92,9 +92,14 @@ enum WalletType {
 /// and half of it above and below the text, as CSS and Compose place it. With line spacing alone, a
 /// line of Body was 18 pt high instead of 22, and every row was shorter than on the web and Android
 /// (SPEC.md §11, 2.12; IOS-018). Scaled like the font, so the line height grows with Dynamic Type.
+///
+/// SwiftUI draws a Text one pixel taller than the font's own line height (measured for 2.16: Caption
+/// 16.06 pt for 15.73 on a 3x screen, 16.23 on a 2x one), so that pixel comes off the padding: without
+/// it a line was 1/3 pt taller than its token, and a History row 67.67 pt instead of 67.
 private struct WalletText: ViewModifier {
     let style: WalletTextStyle
     @ScaledMetric private var leading: CGFloat
+    @Environment(\.displayScale) private var displayScale
 
     init(_ style: WalletTextStyle) {
         self.style = style
@@ -106,7 +111,7 @@ private struct WalletText: ViewModifier {
             .font(style.font)
             .tracking(style.tracking)
             .lineSpacing(leading)
-            .padding(.vertical, leading / 2)
+            .padding(.vertical, max(0, leading - 1 / displayScale) / 2)
     }
 }
 

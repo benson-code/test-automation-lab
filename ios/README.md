@@ -2,7 +2,7 @@
 
 The native iOS client of the wallet: Swift and SwiftUI, the same rules as the web page (`../web/`) and
 the Android app (`../android/`), all defined by [`../SPEC.md`](../SPEC.md). Its Appium tests live with
-the rest of the suite, in [`../tests/ios/`](../tests/ios/) (IOS-001 to 006, 008 to 010, 014, 015, 017 to 019;
+the rest of the suite, in [`../tests/ios/`](../tests/ios/) (IOS-001 to 006, 008 to 010, 014, 015, 017 to 020;
 how to run them: the main README, section 4).
 
 **Screens.** Every screen of the web page and the Android app, in two stages. The first (SPEC 2.10):

@@ -35,7 +35,9 @@ struct Message: View {
         case .success: (WalletColors.successBg, WalletColors.successText, "checkmark.circle")
         }
         HStack(alignment: .top, spacing: WalletSpacing.md) {
-            Image(systemName: icon).foregroundStyle(fg).accessibilityHidden(true)
+            // The icon takes the 24 pt box of the web's and Android's icons, so the text starts where theirs does
+            Image(systemName: icon).font(.system(size: 20)).foregroundStyle(fg).frame(width: 24, height: 24)
+                .accessibilityHidden(true)
             Text(text)
                 .walletText(WalletType.body)
                 .foregroundStyle(fg)
