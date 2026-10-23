@@ -159,12 +159,14 @@ def kill_and_reopen(request, driver, proxy, simulator):
     重新打開時帶一樣的啟動參數，App 才會連回測試代理伺服器；啟動參數和還原畫面無關。
     """
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    def run(timeout: float = 10) -> None:
+    def run(timeout: float = 60) -> None:
+        # 通常 1 到 3 秒就暫停了；CI 上看過一次 15 秒才暫停，所以上限放寬，等到就走
         driver.execute_script("mobile: pressButton", {"name": "home"})
         deadline = time.monotonic() + timeout
-        while driver.query_app_state(BUNDLE_ID) != SUSPENDED_IN_BACKGROUND:
+        while (state := driver.query_app_state(BUNDLE_ID)) != SUSPENDED_IN_BACKGROUND:
             if time.monotonic() > deadline:
-                raise AssertionError(f"the app was not suspended in the background within {timeout:.0f} s")
+                raise AssertionError(f"the app was not suspended in the background within {timeout:.0f} s "
+                                     f"(last state {state})")
             time.sleep(0.2)
         simulator.kill()
         # 重開之前 App 是不是已經在跑（不是我們啟動的）：記下來，CI 上才看得出系統會不會自己把它叫起來
