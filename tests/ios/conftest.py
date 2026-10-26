@@ -16,6 +16,7 @@ API，而是連測試代理伺服器（framework/app/proxy.py，和 Android 的�
 """
 from __future__ import annotations
 
+import os
 import re
 import time
 from pathlib import Path
@@ -102,6 +103,11 @@ def driver(request, simulator, installed):
     options.no_reset = True                       # 每個測試自己重新啟動 App（app fixture）
     options.new_command_timeout = 300
     options.wda_launch_timeout = 600_000          # 第一次要編譯 WebDriverAgent，最多等 10 分鐘
+    # CI 上不要模擬器的視窗：沒設定時，XCUITest driver 看到用 simctl 開好、沒有視窗的模擬器，會把它
+    # 關掉、帶著視窗重開，CI 上重開花了 28 到 123 秒，超過 120 秒，整組測試就開不了 session。
+    # 只在 CI（GitHub Actions 設定 CI=true）：headless 時 driver 會把開著的 Simulator 視窗程式關掉，
+    # 在自己的 Mac 上那可能是別人正在用的視窗
+    options.is_headless = os.environ.get("CI") == "true"
     d = webdriver.Remote(url, options=options)
     yield d
     d.quit()
@@ -153,12 +159,14 @@ def kill_and_reopen(request, driver, proxy, simulator):
     重新打開時帶一樣的啟動參數，App 才會連回測試代理伺服器；啟動參數和還原畫面無關。
     """
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    def run(timeout: float = 10) -> None:
+    def run(timeout: float = 60) -> None:
+        # 通常 1 到 3 秒就暫停了；CI 上看過一次 15 秒才暫停，所以上限放寬，等到就走
         driver.execute_script("mobile: pressButton", {"name": "home"})
         deadline = time.monotonic() + timeout
-        while driver.query_app_state(BUNDLE_ID) != SUSPENDED_IN_BACKGROUND:
+        while (state := driver.query_app_state(BUNDLE_ID)) != SUSPENDED_IN_BACKGROUND:
             if time.monotonic() > deadline:
-                raise AssertionError(f"the app was not suspended in the background within {timeout:.0f} s")
+                raise AssertionError(f"the app was not suspended in the background within {timeout:.0f} s "
+                                     f"(last state {state})")
             time.sleep(0.2)
         simulator.kill()
         # 重開之前 App 是不是已經在跑（不是我們啟動的）：記下來，CI 上才看得出系統會不會自己把它叫起來
