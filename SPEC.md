@@ -20,9 +20,9 @@ None is a product. There is no login: the wallet ID is the only key, exactly as 
 There is no transfer screen.
 
 **One specification, three clients.** Every rule has an ID (`R` input, `K` Idempotency-Key attempts,
-`N` navigation, `D` display, `L` layout, `E` error messages) and states how it was checked on the web
-and in the Android app. Test cases cite these IDs, and §9 traces every rule to its WEB and APP cases,
-including the ones no case covers yet.
+`N` navigation, `D` display, `L` layout, `E` error messages) and states how it was checked on each
+client. Test cases cite these IDs, and §9 traces every rule to its WEB, APP and IOS cases, including
+the ones no case covers yet.
 
 **How they stay in step.** A feature is done when its rule is in this document, the web and the
 Android app both have its screen, and both a WEB and an APP case cover it. Every client uses the same
