@@ -415,6 +415,9 @@ is missing.
 | Google's Android Emulator: Pixel 7 profile, arm64 image | 16 (API 36, the app's target) | A Mac with Apple silicon | `emulator-5554` | about 5 minutes (54 runs) |
 | Google's Android Emulator: Pixel 7 profile, x86-64 image | 16 (API 36) | GitHub's x64 Linux runner, in CI (section 8) | `emulator-5554` | 7 to 10 minutes (58 runs) |
 
+The first two were timed before version 2.11, which added two amounts to APP-005 (13 and 20 digits):
+four more runs, 58 in all.
+
 redroid shares the host's Linux kernel and needs its binder driver, so it runs on Linux only. The
 emulator is a virtual machine with its own kernel (on a Mac, through Apple's Hypervisor framework),
 so it runs on macOS without Docker. On the emulator, `tools/fault_check.py --app-only` also catches
@@ -683,7 +686,8 @@ Android app does not depend on the architecture: its only native library, from A
 
 ## 9. AI-assisted development
 
-I built this project with **Claude Code**, an AI coding agent running on my OCI development server.
+I built this project with **Claude Code**, an AI coding agent running on my OCI development server and,
+for the iOS app, on a Mac mini.
 My background is ten years of manual testing on payment systems; this repository is part of my move
 into test automation (SDET). The work was divided as follows:
 
@@ -694,7 +698,8 @@ into test automation (SDET). The work was divided as follows:
 | Read the explanation of each step, ran it myself, and moved on only once I understood it | Ran each step, reported the results, and diagnosed failures |
 | Decided when to commit and when to make the repository public | Committed in small steps, with messages that explain what changed and why |
 | Chose the web scope and tools: Playwright for Python in the same suite, Figma for the design and its visual direction, no transfer screen; asked for WEB-013 and WEB-014 when the traceability table showed two uncovered rules that guard against double charges | Built the Figma design system, the front end, its specification and the UI tests; found and fixed a double-charge regression it had itself introduced (next section) |
-| Set the goal of one test platform for web, Android and iOS, and started the iOS app in stages | Proposed the stages; built the first one: the SwiftUI app and its Appium (XCUITest) cases |
+| Set the goal of one test platform for web, Android and iOS, had the iOS app built in stages, then asked for its unit tests and a CI job on macOS | Proposed the stages and built them all: the SwiftUI app, its Appium (XCUITest) cases, its 35 unit tests and the macOS CI job |
+| When the three clients were measured against each other, decided for each difference which client changes (for example, the web's card border, to match the apps) | Measured every screen on the three clients at the same width, and reported each difference with its cause before changing any code |
 
 **How I verify that the AI-written tests work:** a fully passing suite is not accepted as evidence.
 Defects are planted in the system under test, each one must make its assigned tests fail, and CI

@@ -97,9 +97,9 @@ The code follows the Android app file by file (`Attempt.swift` ↔ `Attempt.kt`,
 ## Design system
 
 - `UI/Theme/DesignTokens.swift` holds the colours, spacing, radii and text styles under their Figma
-  names, copied from the Android app's `DesignTokens.kt`. When this stage was written all 25 colours,
-  12 spacing and radius values and 8 text styles were equal to `web/src/tokens.css` and the Kotlin
-  file; unlike Android's `DesignTokenParityTest`, nothing checks this on every change yet.
+  names, copied from the Android app's `DesignTokens.kt`. Since SPEC 2.17, `DesignTokenParityTests`
+  (above) reads `web/src/tokens.css` and fails if any colour, spacing value, radius or text style
+  differs, as Android's `DesignTokenParityTest` does.
 - The Inter font files are not copied: the project file points at the Android app's
   `res/font/*.ttf`, so both apps ship the same files.
 - Icons are SF Symbols, not the Figma file's line icons.
